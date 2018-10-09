@@ -36,7 +36,68 @@ redis 是什么
    daemonize 是否是守护进程 默认no
    port
    logfile redis系统日志
-   dir  redis工作目录  
+   dir  redis工作目录 
+ 4.redis api 使用和理解
+  4-1通用命令
+    keys 获取key值
+    一般不建议的使用因为比较中，redis是单线程， io阻塞
+    dbsize key的总数
+     是计数器记录总数
+     exist 检查key是否存在
+     del 删除key-value
+     expire key second 给key设置过期设置
+     ttl key  查看过期剩余时间 -2 表示key不存在 -1 key存在，没有过期时间
+     persist key 
+     去掉key的过期时间 
+     type key 查询可以的类型
+      返回 string list set  zset hash none(表示不再key)
+      sadd 添加集合
+
+5.单线程
+  就想一条高速公路，每一次都会自行一个命令其他命令在等待
+  5-1.为什么这么快
+   纯内存
+   非阻塞IO
+   避免资源切换，资源竞争
+  5-3.注意
+   一次只执行一个命令
+   拒绝长命令
+   keys flushall flushdb 
+   其实不是单线程
+      fysnc file descriptor
+      close file descriptor
+6.字符串
+  内部可以是字符串，也可以是整数 也可以是bits，而二进制 可以是 json xml 
+  values 不能大于512MB 建议最多100mb 太大影响速度，有网络开销 
+  场景
+    缓存 计数器  
+
+  get set  del 
+ 
+  incr key 
+   key 自增1 如果key不存在，自增get(key)=1
+  decr key 
+ key 自减1 ，不存在 =-1
+ incrby key k
+ key 自曾 k 不存在 =k
+
+ decrby key k
+ key 自减 k  不存在 =-k
+
+ 可以使用自增id
+
+
+ set key不管存不存在都设置
+ 
+ setnx
+ set xx
+
+
+
+
+
+
+
 
  
 
