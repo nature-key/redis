@@ -179,8 +179,138 @@ redis 是什么
       zremrangebyrank  删除等级范围内的值
       zremrangebyscore 删除分组范围内的值
       zincrby zmyset 10 s 增加集合元素的分值
-      
 
+11.jedis客户端
+    
+  直连
+    优点 简单方便 适用于少量长期链接场景
+    缺点 存在每次新建关闭TCP开销
+         资源无法控制，存在链接泄漏的可能
+  连接池
+     优点 jedis预先生成，降低开销
+     连接池的形式保护和控制资源的使用
+     缺点 相对直连麻烦，尤其在资源的管理上需要很多参数
+     保证，一旦规划不合理也会出现问题
+
+
+ 瑞士军刀Redis
+   1.慢查询
+     生命周期
+      clinet-->1.发送命令---》2.排队--》3.执行命令--》4.返回结果
+       说明 慢查询发生在执行命令 ，客户端超时不一定是慢查询，但慢查询是客户端超时的一个可 能原因     
+   2两个配置 
+     2-1 slowlog-max-len 
+        先进先出队列
+        固定长度
+        保存在内存中
+     2-2 sloelog-log-slower-than
+      慢查询阀值
+      slowlog-log-slower-than=0记录全部命令
+      slowlog-log-slower-than<0,不记录任何命令   
+  3.配置方法
+   默认值
+     config get slowlog-max-len=128
+     config get slowlog-log-slower-than=10000 微妙
+   修改配置重启
+   动态修改配置
+   config set slowlog-max-len 1000
+   config set slowlog-log-slower-than 1000
+
+   4.慢查询命令
+     slowlog get [n] 获取慢查询队列
+     slowlog len 获取慢查询队列长度
+     slowlog reset 清空慢查询队列
+   5.经验
+    slowlog-max-len 队列长度 默认 128 建议设置1000，过少会导致丢失
+    slowlog-log-slowler-than 阀值 默认10ms ,建议1ms
+    理解生命周期
+    定期持久化慢查询
+
+   6.pipeline
+     什么事流水线
+      将多次命令打包 服务端进行计算  根据顺序返回结果
+
+      redis的毫秒级别
+      pipeline每次条数要控制（网络）主要是控制网络时间
+      pipelin在java中实现
+       依赖 redis.clients
+           jedis
+       原生的是原子的
+       pipeline非原子
+
+       建议
+         1.每次注意pipeline携带数据量  拆分
+         2.pipeine每次只能作用在一个节点
+         3.和原生的区别
+
+    7.发布订阅
+       7-1角色
+        发布者 订阅者  频道
+       7-2模型
+       7-3API
+         publish
+           
+           publish channel message 发布消息
+
+         subscribe
+
+           subscribe channel 订阅
+
+         unsubsrcbe
+           unsubscribe channel 取消订阅
+         其他
+       psubsrcibe pettern 订阅模式
+       punsubsrcibe pattern 退订指定模式
+       pubsub channel 列出至少有一个订阅的频道
+       pubsub numsub channel  列出给定频道的订阅者数量
+       pubsub numpat 列出被订阅模式的数量
+
+
+       消息队列
+          消息是抢的功能 只能有一个收到消息 使用list实现，阻塞
+
+        发布订阅的角色
+        消息队列 和 发布订阅
+        API
+   8.bitmap
+   
+    setbit
+    getbit
+    bitcount 获取位图指定范围
+    bitop op deskey key  做多个Bitmap 的(and)交集 (or)并集  (not)非  (xor)异或  
+    操作并把结果发到deskey中
+
+    bitpos key targetBit [start][end] 不指定就获取全部范围
+      获取指定范围的第一个偏移量对应值等于targetbit位置 
+
+  9.HyperLogLog  
+   
+     算法：极小空间完成独立数量统计 
+     还是一个字符串
+
+     pfadd key element  想hyperloglog添加元素
+
+     pfcount key 计算hyperloglog独立总数
+     pfmerge deskey sourcekey 合并多个hyperloglog
+
+     是否能容忍错误 0.81%
+     不能去除单条数据
+   10 GEO
+     GEO 是啥
+      地理信息定位 存储经纬度 计算两地距离 范围计算等 
+      如北京89公里范围内的饭店 
+
+       如微信的摇一摇  周围的九点
+
+       geoadd 添加地址位置信息
+       geopos 获取地理位置信息
+       geolist 两个地址的距离  单位 m km mi  ft 
+       georadius   获取指定位置范围地理位置信息集合
+
+       3.2提供功能
+         type  zset
+          可以使用zrem  key member
+   
 
 
 
