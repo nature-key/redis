@@ -325,10 +325,32 @@ redis 是什么
       什么是RDB
       redis把内存的数据生成一个RDB文件（二进制）
       触发的三种方式
-      save    阻塞  其他命令等待save执行完，文件策略以老换新  时间复杂度 O（n）
-       
-      pgsave  阻塞  
-      自动 
+      save    阻塞  其他命令等待save执行完创建RDB文件，文件策略以老换新  时间复杂度 O（n）
+
+      pgsave  阻塞   客户端执行pgsave 主线程生成子线程进行fork(非常快) 创建RDB文件 以老换新  哦（n）
+      自动  根据配置生成RDB文件  是使用pgsave进行生成 
+      配置说明
+        dbfilename  dump.rdb 默认名字
+        stop-write-on-bgsave-error yes  当rdb文件错误不进行保存，默认yes
+        rdbcompression yes  是否启用 压缩文件
+        rdbchecksum yes  rdb文件的校验
+        dir ./  文件目录
+       容易忽略的除法方式
+       1.全量复制
+           没有任何配置以及save 也会成成rdb文件，主从复制
+        2.debug reload
+        
+        3 shutdown 自动生辰文件   
+
+
+        总结
+         1.DDB是redis内存到硬盘的快照拥有持久化
+         2.save通常不会阻塞redis
+         3.bgsave不会阻塞 会产生紫禁城fork
+         4,save自动配置满足就会被执行
+         5.不容忽视的触发机制
+            shutdown 主从复制
+
 
     
 
