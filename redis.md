@@ -310,7 +310,28 @@ redis 是什么
        3.2提供功能
          type  zset
           可以使用zrem  key member
-   
+
+11.redis持久化
+
+    持久化作用
+      redis把数据存储在内存上，数据更新异步的同步到磁盘上
+
+     持久化方式
+     
+       1.快照    mysql Dump  redis RDB
+       2.日志    mysql binlog  redis AOF   Hbase Hlog  
+
+12 RDB
+      什么是RDB
+      redis把内存的数据生成一个RDB文件（二进制）
+      触发的三种方式
+      save    阻塞  其他命令等待save执行完，文件策略以老换新  时间复杂度 O（n）
+       
+      pgsave  阻塞  
+      自动 
+
+    
+
 
 
 
