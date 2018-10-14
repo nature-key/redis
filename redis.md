@@ -512,6 +512,122 @@ redis主从复制
    问题：机器宕机后，大量的全量复制
    解决：直接分散多机器
 
+第八章 redids sentinel
+
+    1.主从复制高可用
+     问题：手动故障转移
+        1.主节点有问题
+        2.slave 建立新的主节点
+        3.其他从节点重新复制新的主节点
+
+
+     问题 ： 写能力和存储能力受限   
+
+  Redis Sentinel故障转移
+
+1.多个sentinel发现master有故障
+2.选举一个sentinel作为领导
+3.sentinel 选出一个slave作为master
+4.其他的slave成为新的master的slave
+5.sentinel通知客户端新的master
+6.等待老的master复活成为新的master的slavae
+
+sentinel主要配置
+   port 端口
+   dir 目录
+   logfile 日志文件
+   sentinel  monitor mymaster 127.0.0.1 2 
+      监控master mymaster 名称  IP  2代表几个sentinel认为主节点出现故障就认为有问题
+  sentinel down-after-milliseconds mymaser 3000
+     代表sentinel多少秒一直Ping不通就代表有问题  
+  sentinel parallel-sync mymaster 1    每次异步复制一个
+    sentinel failover-timeout mymaster 18000 
+      转移时间 
+
+java客户端
+ 1.遍历所有的sentinel集合获取一个可用sentinel 参数sentinel结合 he
+ 和mastername
+ 2. 通过sentinel 根据mastername获取master信息，返回给sentinel
+ 3.当客户端获取master信息的时候，会做一次role 角色的验证
+ 4.sentinel发现master节点变化发布消息给客户端（内部实现发布订阅）
+
+坑记录
+  问题：All sentinels down, cannot determine where is mymaster master is running.
+
+这是因为哨兵的配置文件里的保护模式启动了。所以又因为没有绑定可以访问的ip和设置访问密码，就不允许从外部访问。
+
+我们的哨兵明明是127的地址，应该访问127.0.0.1:26379才对啊，这是因为redis内部把127的地址转换成了192.168.2.101了，也就是你的本机的ip地址。所以访问192的地址就相当于从外部访问你的哨兵。
+
+根据它的1，2，3，4的提示，你只要满足其中一个就行。于是我就把三个哨兵的sentinel.conf配置文件中的保护模式改为禁用就行了
+
+
+三个定时任务
+ 1.每10秒每个sentinel对master和slave进行info
+   发现slave节点
+   确定主从关系
+ 2.每2秒每个sentinel 通过master节点的chananel交换信息
+      通过_sentinel_:hello频道交互
+      交互对节点的“看法”和自身信息
+ 3.每一秒每个sentinel对其他sentinel和redis执行ping
+   心跳检测，失败判定依据
+
+主观下线和客观下线
+  sentinel monitor mymaster ip port quorum
+  sentinel monitor down-after-milliseconds mymaster 30000
+ 主观下线 ，每一个sentinel节点对Redis节点失联，判定下线
+ 客观下线 。多有sentinel节点对redis节点失联，达成共识，超过quorum数目
+
+ sentinel is-master-doen-by-addr 判断主节点是否下线 和是否成为一个领导职
+  sentinel节点最好为奇数而quorum最好是(总数/2+1)
+
+
+redis领导选举
+原因只有一个sentinel节点完成故障转移
+选举 通过sentinel is-master-down-by-addr命令。希望成为领导者
+
+1.每个主观下线的sentinel节点想起他sentinel及节点发送命令，请求自己为领导者
+2.当其他sentinel收到命令时候，其他sentinel发现自己还没有同意其他节点通过，这就通过，否者拒绝
+3.如果该sentinel发现自己的票数超过qurum.就成为领导者
+4.此时也会出现多个sentinel节点成为领导者，则等待一段时间继续选举
+
+
+故障转移
+ 1从slave节点先出一个合适的节点作为主节点
+ 2对上面的slave节点使用slavae no one 成为主节点
+ 3.向其他节点发送命令让他进行成为新的master的从节点 。复制参数和parallel-syncs参数有关
+ 4.更新对原来master节点配置为slave.并记性关注，当复活的时候进行新节点master节点复制
+
+  合适的节点为master
+  1.选择优先级搞得 slavae-priority,如果存在返回否则继续
+  2.选择偏移量最大的（和master比较接近，数据差距小），如果有则返回，否则继续
+  3.选在runID细小的salve节点
+
+ 节点运维
+  1机器下线
+  2.机器性能不足
+  3.节点自身故障
+
+  主节点
+   sentinel failover msatername
+     只有故障转移。他已经确认master下线以及领导是谁
+   三个消息
+   1.switch-master切换主节点
+   2convert-to-slave切换到从节点
+   3.sdown -主观下线  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
