@@ -614,6 +614,160 @@ redis领导选举
    1.switch-master切换主节点
    2convert-to-slave切换到从节点
    3.sdown -主观下线  
+redis 集群
+ 顺序分区 和哈希分区 
+
+
+ 哈希分区        数据分散度高           memeCACHE
+                键值分布业务无关
+                无法顺序访问
+                支持批量操作
+
+ 顺序分区       数据分散易倾斜
+               键值业务相关
+               可顺序访问
+               不支持批量                BigTable  HBase
+
+
+节点取余分区
+  hash(key)%3
+  添加一个节点
+    迁移80%数据 ，可以多陪扩容约为50%
+  问题：数据节点变化，导致数据迁移
+  迁移数量和添加节点数量有关：建议多陪扩容
+
+一致性哈希
+ 客户端分片 哈希+顺时针（优化取余）
+ 节点伸缩：只影响领巾节点但是还是有数据迁移
+ 翻倍伸缩：保证最小迁移数据和负载均衡
+
+ 虚拟槽分配
+
+  每一个槽都有一个范围
+  每一个槽对应一个节点
+  每一个可以进行哈希计算如CRC16(KEY)&16383
+  计算的结果放到node1如果是就放到这里保存
+  如果不是就返回一个node,进行保存
+redis cluster
+  节点  设置  redis-cluster-enable yes 
+  meeet  节点之间相互通信
+  指定槽   默认指定槽的范围16384 
+特点
+  复制 主从复制
+  高可用 主节点有问题，从节点顶上
+  分片 多个主节点进行读写
+
+
+原生命令安装
+   1.节点配置
+      cluster-enable yes
+      cluster-config-file nodes-port.conf
+
+   2.meet
+       cluster meet ip port
+   redis-cli -h 127.0.0.1 -p 7000 cluster meet 127.0.0.1  7001
+
+
+  主要配置
+    cluster-enabled  yes
+    cluster-node-timeout 15000
+    cluster-config-file “nide-conf”
+    cluster-require-full-coverage yes  表示一个节点有问题集群就不提供货服务
+  3.分配槽
+   cluster addslots  {0-5461} 
+  4.设置主从
+     cluster replicate  node-id  (node 节点不变)
+  redis-cli -h 127.0.0.1 -p 7003 cluster replicate ${node-id}   
+
+1.原生命令安装
+ 繁琐 ，生产环境不使用
+2.官方的工具
+  高效  准确 ，生产环境您可以使用
+3.其他
+  可视化部署
+
+  第十章 集群伸缩
+
+  1、伸缩原理
+
+    集群伸缩=槽和数据在节点之间的移动
+
+  2.扩容集群
+    准备新节点
+    加入集群
+    迁移槽和数据 
+
+  新节点
+    集群模式
+    配置和其他节点统一
+    启动后是孤儿节点
+  加入 集群
+   cluster meet 127.0.0.1 6385   
+    作用
+      为它迁移槽和数据实现扩容
+      作为从节点负责故障转移
+
+
+迁移数据
+
+ 1.对目标节点发送 cluster setslot {slot} importing {sourceNodeid} ,让目标节点准备导入槽的数据
+ 2.对源节点发送 cluster setslot {slot} migrating {targetNodeId}命令 让源节点准备前除草的数据
+ 3.源节点循环执行clustergetkeysinslot {slot} {count}命令 ，每次获取count个属于槽的键
+ 4.在与阿尼额点执行 migrate {targetIp}{targetPort} key 0 {timeout} 命令吧指定key迁移
+ 5.重复执行不走3-4h直到槽下所有的键数据迁移目标节点
+ 6，想集群内所有的节点发送clustersetslot {slot} node {tartgetNodeId}命令 通知槽分配给目标节点
+
+
+ 集群扩容
+  1.新建节点
+  2.加入集群
+  3.设置主从
+  redis-cli -p 7007 cluster replicate 73c53ccef2e444fe3a65cf582398af07a784302c
+  4.迁移槽
+  redis-trib.rb reshard 127.0.0.1:7000
+
+ 收缩集群 
+   
+  1.下线迁移槽
+  2.忘记节点
+     cluster forget {downNodeId}  忘记 nodeid
+  3.关闭节点
+
+      使用 redis-trib.rb del-node 127.0.0.1:7000 73c53ccef2e444fe3a65cf582398af07a784302c
+
+客户端路由
+
+moved重定向
+
+ 1.客户端执行命令想一个节点
+ 2，如果节点命中，执行命令
+ 3.否则，返回异常moved 带有节点信息
+ 4.客户端在执行命令
+
+ cluster keyslot hello 计算key的slot
+
+
+ ask重定向
+
+
+ 1.当客户端去获取值时候，获取源节点
+ 2.但是源节点的数据迁移到了目标节点
+ 3.这是就应该有一种机会 ask重定向
+
+
+ 两个重顶向
+   都是是客户单重定向
+
+   moved草已经确定迁移
+   ask，槽还在迁移中
+
+问题
+  性能
+
+ smart 客户端
+  JedisCluster    
+
+
 
 
 
